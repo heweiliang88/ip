@@ -1,0 +1,50 @@
+name: Update IP
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # Run every 6 hours
+  workflow_dispatch:      # Allow manual trigger
+
+jobs:
+  update-ip:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Important: Allow writing to the repository
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Public IP
+        id: get_ip
+        run: |
+          IP=$(curl -s https://api.ipify.org)
+          echo "ip=$IP" >> $GITHUB_OUTPUT
+          echo "Current IP is $IP"
+
+      - name: Update README
+        run: |
+          IP="${{ steps.get_ip.outputs.ip }}"
+          DATE=$(date -u "+%Y-%m-%d %H:%M:%S UTC")
+          
+          # Write content to README.md
+          echo "# IP Address Log" > README.md
+          echo "" >> README.md
+          echo "Last Updated: $DATE" >> README.md
+          echo "" >> README.md
+          echo "## Current IP" >> README.md
+          echo "\`$IP\`" >> README.md
+          
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes to commit
+          if [[ -n $(git status -s) ]]; then
+            git add README.md
+            git commit -m "Update IP address [skip ci]"
+            git push
+          else
+            echo "No changes to commit."
+          fi
